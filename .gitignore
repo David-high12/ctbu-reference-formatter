@@ -1,0 +1,6 @@
+*.docx
+*.doc
+*.tar.gz
+output/
+playwright-report/
+test-results/
