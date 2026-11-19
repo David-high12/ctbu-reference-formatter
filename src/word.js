@@ -10,12 +10,67 @@
   const referenceHeading = /^参\s*考\s*文\s*献\s*[:：]?$/u;
   const followingHeading = /^(?:致\s*谢|后\s*记|攻读.*期间.*(?:成果|论文))\s*[:：]?$|^附\s*录(?:$|[\s:：A-Za-z0-9一二三四五六七八九十(（])/u;
   const protectedAnchors = new Set(["bookmarkStart", "bookmarkEnd", "commentRangeStart", "commentRangeEnd"]);
+  const propertyOrder = {
+    pPr: ["spacing", "ind", "contextualSpacing", "mirrorIndents", "suppressOverlap", "jc", "textDirection",
+      "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle", "rPr", "sectPr", "pPrChange"],
+    rPr: ["rStyle", "rFonts", "b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline",
+      "shadow", "emboss", "imprint", "noProof", "snapToGrid", "vanish", "webHidden", "color", "spacing", "w",
+      "kern", "position", "sz", "szCs", "highlight", "u", "effect", "bdr", "shd", "fitText", "vertAlign",
+      "rtl", "cs", "em", "lang", "eastAsianLayout", "specVanish", "oMath", "rPrChange"]
+  };
 
   const nodes = (element) => Array.from(element?.children ?? []);
   const child = (element, kind) => nodes(element).find((node) => node.namespaceURI === w && node.localName === kind);
   const attr = (element, name = "val") => element?.getAttributeNS(w, name);
   const descendant = (element, kind) => Array.from(element?.getElementsByTagNameNS(w, kind) ?? []);
   const paragraphText = (paragraph) => descendant(paragraph, "t").map((node) => node.textContent).join("");
+
+  function ensureProperty(parent, name) {
+    const existing = child(parent, name);
+    if (existing) return existing;
+    const property = parent.ownerDocument.createElementNS(w, "w:" + name);
+    const order = propertyOrder[parent.localName];
+    const next = order
+      ? nodes(parent).find((node) => node.namespaceURI === w && order.indexOf(node.localName) > order.indexOf(name))
+      : parent.firstChild;
+    parent.insertBefore(property, next ?? null);
+    return property;
+  }
+
+  function formatReferenceLayout(paragraph, heading) {
+    let changed = false;
+    const set = (node, name, value) => {
+      if (attr(node, name) === value) return;
+      node.setAttributeNS(w, "w:" + name, value);
+      changed = true;
+    };
+    const properties = ensureProperty(paragraph, "pPr");
+    set(ensureProperty(properties, "jc"), "val", heading ? "center" : "left");
+    if (heading) {
+      const spacing = ensureProperty(properties, "spacing");
+      set(spacing, "before", "0");
+      set(spacing, "beforeLines", "200");
+      set(spacing, "beforeAutospacing", "0");
+      set(ensureProperty(properties, "contextualSpacing"), "val", "0");
+    }
+    const font = heading ? "黑体" : "仿宋";
+    const size = heading ? "28" : "24";
+    const runs = nodes(paragraph).filter((node) => node.namespaceURI === w && node.localName === "r" && child(node, "t"));
+    for (const parent of [properties, ...runs]) {
+      const runProperties = ensureProperty(parent, "rPr");
+      const fonts = ensureProperty(runProperties, "rFonts");
+      for (const face of ["ascii", "hAnsi", "eastAsia", "cs"]) set(fonts, face, font);
+      for (const theme of ["asciiTheme", "hAnsiTheme", "eastAsiaTheme", "cstheme"]) {
+        if (fonts.hasAttributeNS(w, theme)) {
+          fonts.removeAttributeNS(w, theme);
+          changed = true;
+        }
+      }
+      set(ensureProperty(runProperties, "sz"), "val", size);
+      set(ensureProperty(runProperties, "szCs"), "val", size);
+    }
+    return changed;
+  }
 
   function parseXml(text) {
     if (/<!DOCTYPE\b/iu.test(text)) throw new Error("文档含有暂不支持的 XML 声明。");
@@ -115,6 +170,7 @@
           if (hidden && !["0", "false", "off"].includes(attr(hidden))) plain = false;
           continue;
         }
+        if (part.namespaceURI === w && part.localName === "lastRenderedPageBreak") continue;
         const value = part.namespaceURI === w && (part.localName === "t" ? part.textContent : part.localName === "tab" ? "\t" : null);
         if (typeof value !== "string") {
           plain = false;
@@ -150,6 +206,7 @@
         const prefix = !automatic && manualLabel.exec(content.text);
         entries.push({
           paragraphIndex: index,
+          paragraph,
           number: automatic ?? manual[1],
           content,
           text: prefix ? content.text.slice(prefix[0].length) : content.text,
@@ -162,7 +219,7 @@
       }
     }
     if (!entries.length) throw new Error("参考文献标题后没有识别到连续的编号条目。请检查是否使用了 [1] 形式的手打编号或 Word 数字列表。");
-    return { entries, stoppedAtUnnumbered };
+    return { heading: headings[0], entries, stoppedAtUnnumbered };
   }
 
   function setText(node, value) {
@@ -223,13 +280,15 @@
     ]);
     const styles = loadStyles(styleDoc);
     const labels = mapNumbering(doc, loadNumbering(numberingDoc), styles);
-    const { entries, stoppedAtUnnumbered } = bibliographyEntries(doc, styles, labels);
+    const { heading, entries, stoppedAtUnnumbered } = bibliographyEntries(doc, styles, labels);
+    let layoutChanged = formatReferenceLayout(heading, true);
     let changed = 0;
     const reviews = [];
     for (const entry of entries) {
       const citation = !entry.content.plain || entry.manualAndAutomatic
         ? { reason: "含复杂 Word 格式或重复编号，已保留原文" }
         : window.formatCitation(entry.text);
+      if (citation.layoutEligible && formatReferenceLayout(entry.paragraph, false)) layoutChanged = true;
       const crossesAnchor = citation.edits?.some(({ start, end }) => {
         const left = entry.start + start;
         const right = entry.start + end;
@@ -247,12 +306,12 @@
       }
     }
     let output = bytes;
-    if (changed) {
+    if (changed || layoutChanged) {
       zip.file("word/document.xml", new XMLSerializer().serializeToString(doc));
       output = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
     }
     const references = entries.map(({ number, paragraphIndex }) => ({ number, paragraphIndex }));
-    return { bytes: output, references, changed, reviews, stoppedAtUnnumbered };
+    return { bytes: output, references, changed, layoutChanged, reviews, stoppedAtUnnumbered };
   }
 
   window.formatWord = formatWord;

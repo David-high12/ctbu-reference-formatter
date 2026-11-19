@@ -44,9 +44,11 @@
     get("total").textContent = String(result.references.length);
     get("changed").textContent = String(result.changed);
     get("review-count").textContent = String(result.reviews.length);
-    get("result-summary").textContent = result.reviews.length
-      ? "待复核条目已保留原文。"
-      : result.changed ? "可以下载整理后的论文。" : "已识别的条目无需调整。";
+    const summary = [];
+    if (result.layoutChanged) summary.push("已调整文末排版。");
+    if (result.reviews.length) summary.push("待复核条目已保留原文。");
+    get("result-summary").textContent = summary.join("")
+      || (result.changed ? "可以下载整理后的论文。" : "已识别的条目无需调整。");
     get("boundary-notice").hidden = !result.stoppedAtUnnumbered;
 
     const reviewBox = get("review-box");

@@ -6,7 +6,7 @@
   <meta name="description" content="在浏览器中整理本科论文的文末参考文献，下载 Word 副本。">
   <meta name="theme-color" content="#f4f6fb">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>参考文献整理 · 重庆工商大学试用版</title>
+  <title>参考文献整理 · 重庆工商大学人工智能学院</title>
   <style>
 :root {
   color-scheme: light;
@@ -162,9 +162,9 @@ summary { width: fit-content; cursor: pointer; font-weight: 650; color: #334e94;
   </header>
   <main class="site-width">
     <section class="intro" aria-labelledby="title">
-      <div class="edition">重庆工商大学 · 学院样例试用版</div>
+      <div class="edition">重庆工商大学 · 人工智能学院 2026 版</div>
       <h1 id="title">整理 Word 参考文献</h1>
-      <p>选一份本科论文，统一文末参考文献的著录格式。</p>
+      <p>选一份本科论文，统一文末参考文献的著录和排版。</p>
     </section>
 
     <section class="panel workbench" aria-label="选择并整理论文">
@@ -197,7 +197,7 @@ summary { width: fit-content; cursor: pointer; font-weight: 650; color: #334e94;
       </div>
       <dl class="metrics">
         <div><dt>识别条目</dt><dd id="total"></dd></div>
-        <div><dt>已调整</dt><dd id="changed"></dd></div>
+        <div><dt>著录已调整</dt><dd id="changed"></dd></div>
         <div><dt>待复核</dt><dd id="review-count"></dd></div>
       </dl>
       <p class="notice" id="boundary-notice" hidden>识别在未编号的段落处停止。请检查后面是否还有参考文献。</p>
@@ -209,8 +209,8 @@ summary { width: fit-content; cursor: pointer; font-weight: 650; color: #334e94;
 
     <details class="help">
       <summary>整理范围与适用格式</summary>
-      <p>支持 Word 数字列表和手打方括号编号，按学院样例整理期刊 [J] 和学位论文 [D]。保留编号、顺序、标题样式和原有行距。遇到缺项或复杂 Word 格式会保留条目原文，并提示复核。</p>
-      <p>请按所在学院当届模板复核交稿格式。</p>
+      <p>按人工智能学院 2026 版资料设置参考文献标题和条目排版。支持期刊 [J]、会议论文 [C]、图书 [M] 和学位论文 [D]，兼容自动编号、手打方括号编号及英文作者缩写。</p>
+      <p>缺项或结构不明确时保留原文，并标出需核对的内容。请在交稿前核对条目内容和引用顺序。</p>
     </details>
   </main>
   <!--
@@ -262,18 +262,37 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   const typeMarker = /[\[［][ \u00a0]*(J\/OL|EB\/OL|[JDMCPNRSAGBKTOZ])[ \u00a0]*[\]］]/giu;
   const authorList = /^(?<authors>[\p{Script=Han}·]{2,8}(?:[ \u00a0]*[,，、][ \u00a0]*(?:[\p{Script=Han}·]{2,8}|等))*)[ \u00a0]*[.。．][ \u00a0]*(?=\S)/du;
   const nameWord = /^\p{Lu}[\p{Script=Latin}\p{M}'’‐‑-]+$/u;
-  const initials = /^\p{Lu}\.$/u;
+  const dottedInitial = /^\p{Lu}\.$/u;
+  const initials = /^\p{Lu}\.?$/u;
   const nameParticles = new Set(["de", "del", "da", "dos", "van", "von", "der", "ten"]);
-  const journal = /^[ \u00a0]*(?:[.。．][ \u00a0]*)?(?<publication>\S(?:.*?\S)?)[ \u00a0]*[,，][ \u00a0]*(?<year>[12]\d{3})[ \u00a0]*[,，][ \u00a0]*(?<volume>\d{1,6})?[ \u00a0]*(?:[(（][ \u00a0]*(?<issue>[A-Za-z]?\d+[A-Za-z]?(?:[-–]\d+)?)[ \u00a0]*[)）])?[ \u00a0]*(?:[:：][ \u00a0]*(?<locator>[A-Za-z]?\d+[A-Za-z]?(?:[ \u00a0]*[-–—－][ \u00a0]*[A-Za-z]?\d+[A-Za-z]?)?))?[ \u00a0]*[.。．]?[ \u00a0]*$/du;
+  const locator = "(?<locator>[A-Za-z]?\\d+[A-Za-z]?(?:[ \\u00a0]*[-–—－][ \\u00a0]*[A-Za-z]?\\d+[A-Za-z]?)?)";
+  const journal = withLocator(/^[ \u00a0]*(?:[.。．][ \u00a0]*)?(?<publication>\S(?:.*?\S)?)[ \u00a0]*[,，][ \u00a0]*(?<year>[12]\d{3})(?:[ \u00a0]*[,，][ \u00a0]*(?<volume>\d{1,6})?[ \u00a0]*(?:[(（][ \u00a0]*(?<issue>[A-Za-z]?\d+[A-Za-z]?(?:[-–]\d+)?)[ \u00a0]*[)）])?)?/);
   const thesis = /^[ \u00a0]*(?:[.。．][ \u00a0]*)?(?:(?<advisorLabel>导师)[ \u00a0]*[:：][ \u00a0]*(?<advisor>[^.。．]+?)[ \u00a0]*[.。．][ \u00a0]*)?(?<institution>\S(?:.*?\S)?)[ \u00a0]*[,，][ \u00a0]*(?<year>[12]\d{3})[ \u00a0]*[.。．]?[ \u00a0]*$/du;
+  const conference = withLocator(/^[ \u00a0]*(?:[.。．][ \u00a0]*)?[\/／]{2}[ \u00a0]*(?<proceedings>\S(?:.*?\S)?)[ \u00a0]*(?<yearDivider>[.。．,，])[ \u00a0]*(?<year>[12]\d{3})(?:[ \u00a0]*[,，][ \u00a0]*(?<volume>\d{1,6}))?/);
+  const book = withLocator(/^[ \u00a0]*(?:[.。．][ \u00a0]*)?(?<place>\S(?:[^:：]*?\S)?)[ \u00a0]*[:：][ \u00a0]*(?<publisher>\S(?:.*?\S)?)[ \u00a0]*[,，][ \u00a0]*(?<year>[12]\d{3})/, "[:：.。．]");
+  const formats = {
+    J: { pattern: journal, unreadable: "无法识别刊名、年份或卷期" },
+    D: { pattern: thesis, unreadable: "无法识别学位授予单位、年份或导师字段" },
+    C: { pattern: conference, unreadable: "无法识别会议录写法，请核对 [C]//、会议录名和年份" },
+    M: { pattern: book, unreadable: "无法识别出版地、出版社或年份" }
+  };
+
+  function withLocator(prefix, divider = "[:：]") {
+    return new RegExp(prefix.source + "[ \\u00a0]*(?:" + divider + "[ \\u00a0]*" + locator + ")?[ \\u00a0]*[.。．]?[ \\u00a0]*$", "du");
+  }
 
   function hasLatinAuthors(prefix) {
     for (const divider of prefix.matchAll(/[.。．][ \u00a0]+(?=\S)/gu)) {
-      const names = prefix.slice(0, divider.index).split(/[,，]/u);
+      const names = prefix.slice(0, divider.index).replace(/[,，][ \u00a0]*et[ \u00a0]+al$/iu, "").split(/[,，]/u);
       if (names.every((author) => {
         const words = author.trim().split(/[ \u00a0]+/u);
-        return words.length >= 2 && words.length <= 7 && nameWord.test(words.at(-1))
-          && words.every((word) => nameWord.test(word) || initials.test(word) || nameParticles.has(word));
+        if (words.length < 2 || words.length > 7) return false;
+        if (nameWord.test(words.at(-1))
+          && words.every((word) => nameWord.test(word) || dottedInitial.test(word) || nameParticles.has(word))) return true;
+        const firstInitial = words.findIndex((word) => initials.test(word));
+        return firstInitial > 0 && nameWord.test(words[firstInitial - 1])
+          && words.slice(0, firstInitial - 1).every((word) => nameParticles.has(word.toLowerCase()))
+          && words.slice(firstInitial).every((word) => initials.test(word));
       })) return true;
     }
     return false;
@@ -288,7 +307,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (markers.length !== 1) return { reason: "无法唯一确认文献类型" };
     const marker = markers[0];
     const type = marker[1].toUpperCase();
-    if (type !== "J" && type !== "D") return { reason: "首版支持期刊 [J] 和学位论文 [D]" };
 
     const prefix = text.slice(0, marker.index).trimEnd();
     const authorMatch = authorList.exec(prefix);
@@ -296,16 +314,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       return { reason: "无法确认作者与题名的分隔" };
     }
 
+    const format = formats[type];
+    if (!format) return { reason: "[" + type + "] 暂无自动著录规则", layoutEligible: true };
+
     const markerEnd = marker.index + marker[0].length;
     const tail = text.slice(markerEnd);
-    const match = (type === "J" ? journal : thesis).exec(tail);
-    if (type === "J" && (!match || !(match.groups.volume || match.groups.issue))) {
-      return { reason: "无法识别刊名、年份或卷期" };
+    const match = format.pattern.exec(tail);
+    if (!match || (type === "D" && tail.replace(/^[.。．\s]*/u, "").startsWith("导师") && !match.groups.advisor)) {
+      return { reason: format.unreadable, layoutEligible: true };
     }
-    if (type === "J" && !match.groups.locator) return { reason: "缺少页码或文章编号" };
-    if (type === "D" && (!match || (tail.replace(/^[.。．\s]*/u, "").startsWith("导师") && !match.groups.advisor))) {
-      return { reason: "无法识别学位授予单位、年份或导师字段" };
-    }
+    if (type === "J" && !match.groups.locator) return { reason: "原文缺少页码或文章编号，请核对出版记录", layoutEligible: true };
 
     const edits = [];
     const edit = (start, end, replacement) => {
@@ -324,18 +342,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const group = (name) => match.indices.groups[name].map((index) => index + markerEnd);
     const between = (previous, next, separator) => edit(group(previous)[1], group(next)[0], separator);
 
+    let last = "year";
     if (type === "J") {
       edit(markerEnd, group("publication")[0], ". ");
       between("publication", "year", ", ");
       if (match.groups.volume) between("year", "volume", ", ");
       if (match.groups.issue) between(match.groups.volume ? "volume" : "year", "issue", match.groups.volume ? "(" : ", (");
-      between(match.groups.issue ? "issue" : "volume", "locator", match.groups.issue ? "): " : ": ");
-      const range = /[ \u00a0]*[-–—－][ \u00a0]*/u.exec(match.groups.locator);
-      if (range) {
-        const start = group("locator")[0] + range.index;
-        edit(start, start + range[0].length, "-");
+      last = match.groups.issue ? "issue" : match.groups.volume ? "volume" : "year";
+    } else if (type === "C") {
+      edit(markerEnd, group("proceedings")[0], "//");
+      between("proceedings", "year", /[,，]/u.test(match.groups.yearDivider) ? ", " : ". ");
+      if (match.groups.volume) {
+        between("year", "volume", ", ");
+        last = "volume";
       }
-      edit(group("locator")[1], text.length, ".");
+    } else if (type === "M") {
+      edit(markerEnd, group("place")[0], ". ");
+      between("place", "publisher", ": ");
+      between("publisher", "year", ", ");
     } else {
       edit(markerEnd, group(match.groups.advisor ? "advisorLabel" : "institution")[0], ". ");
       if (match.groups.advisor) {
@@ -343,10 +367,20 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         between("advisor", "institution", ". ");
       }
       between("institution", "year", ", ");
-      edit(group("year")[1], text.length, ".");
     }
 
-    return { edits };
+    if (match.groups.locator) {
+      between(last, "locator", last === "issue" ? "): " : ": ");
+      const range = /[ \u00a0]*[-–—－][ \u00a0]*/u.exec(match.groups.locator);
+      if (range) {
+        const start = group("locator")[0] + range.index;
+        edit(start, start + range[0].length, "-");
+      }
+      last = "locator";
+    }
+    edit(group(last)[1], text.length, ".");
+
+    return { edits, layoutEligible: true };
   }
 
   window.formatCitation = formatCitation;
@@ -366,12 +400,67 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   const referenceHeading = /^参\s*考\s*文\s*献\s*[:：]?$/u;
   const followingHeading = /^(?:致\s*谢|后\s*记|攻读.*期间.*(?:成果|论文))\s*[:：]?$|^附\s*录(?:$|[\s:：A-Za-z0-9一二三四五六七八九十(（])/u;
   const protectedAnchors = new Set(["bookmarkStart", "bookmarkEnd", "commentRangeStart", "commentRangeEnd"]);
+  const propertyOrder = {
+    pPr: ["spacing", "ind", "contextualSpacing", "mirrorIndents", "suppressOverlap", "jc", "textDirection",
+      "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle", "rPr", "sectPr", "pPrChange"],
+    rPr: ["rStyle", "rFonts", "b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline",
+      "shadow", "emboss", "imprint", "noProof", "snapToGrid", "vanish", "webHidden", "color", "spacing", "w",
+      "kern", "position", "sz", "szCs", "highlight", "u", "effect", "bdr", "shd", "fitText", "vertAlign",
+      "rtl", "cs", "em", "lang", "eastAsianLayout", "specVanish", "oMath", "rPrChange"]
+  };
 
   const nodes = (element) => Array.from(element?.children ?? []);
   const child = (element, kind) => nodes(element).find((node) => node.namespaceURI === w && node.localName === kind);
   const attr = (element, name = "val") => element?.getAttributeNS(w, name);
   const descendant = (element, kind) => Array.from(element?.getElementsByTagNameNS(w, kind) ?? []);
   const paragraphText = (paragraph) => descendant(paragraph, "t").map((node) => node.textContent).join("");
+
+  function ensureProperty(parent, name) {
+    const existing = child(parent, name);
+    if (existing) return existing;
+    const property = parent.ownerDocument.createElementNS(w, "w:" + name);
+    const order = propertyOrder[parent.localName];
+    const next = order
+      ? nodes(parent).find((node) => node.namespaceURI === w && order.indexOf(node.localName) > order.indexOf(name))
+      : parent.firstChild;
+    parent.insertBefore(property, next ?? null);
+    return property;
+  }
+
+  function formatReferenceLayout(paragraph, heading) {
+    let changed = false;
+    const set = (node, name, value) => {
+      if (attr(node, name) === value) return;
+      node.setAttributeNS(w, "w:" + name, value);
+      changed = true;
+    };
+    const properties = ensureProperty(paragraph, "pPr");
+    set(ensureProperty(properties, "jc"), "val", heading ? "center" : "left");
+    if (heading) {
+      const spacing = ensureProperty(properties, "spacing");
+      set(spacing, "before", "0");
+      set(spacing, "beforeLines", "200");
+      set(spacing, "beforeAutospacing", "0");
+      set(ensureProperty(properties, "contextualSpacing"), "val", "0");
+    }
+    const font = heading ? "黑体" : "仿宋";
+    const size = heading ? "28" : "24";
+    const runs = nodes(paragraph).filter((node) => node.namespaceURI === w && node.localName === "r" && child(node, "t"));
+    for (const parent of [properties, ...runs]) {
+      const runProperties = ensureProperty(parent, "rPr");
+      const fonts = ensureProperty(runProperties, "rFonts");
+      for (const face of ["ascii", "hAnsi", "eastAsia", "cs"]) set(fonts, face, font);
+      for (const theme of ["asciiTheme", "hAnsiTheme", "eastAsiaTheme", "cstheme"]) {
+        if (fonts.hasAttributeNS(w, theme)) {
+          fonts.removeAttributeNS(w, theme);
+          changed = true;
+        }
+      }
+      set(ensureProperty(runProperties, "sz"), "val", size);
+      set(ensureProperty(runProperties, "szCs"), "val", size);
+    }
+    return changed;
+  }
 
   function parseXml(text) {
     if (/<!DOCTYPE\b/iu.test(text)) throw new Error("文档含有暂不支持的 XML 声明。");
@@ -471,6 +560,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           if (hidden && !["0", "false", "off"].includes(attr(hidden))) plain = false;
           continue;
         }
+        if (part.namespaceURI === w && part.localName === "lastRenderedPageBreak") continue;
         const value = part.namespaceURI === w && (part.localName === "t" ? part.textContent : part.localName === "tab" ? "\t" : null);
         if (typeof value !== "string") {
           plain = false;
@@ -506,6 +596,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         const prefix = !automatic && manualLabel.exec(content.text);
         entries.push({
           paragraphIndex: index,
+          paragraph,
           number: automatic ?? manual[1],
           content,
           text: prefix ? content.text.slice(prefix[0].length) : content.text,
@@ -518,7 +609,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
     }
     if (!entries.length) throw new Error("参考文献标题后没有识别到连续的编号条目。请检查是否使用了 [1] 形式的手打编号或 Word 数字列表。");
-    return { entries, stoppedAtUnnumbered };
+    return { heading: headings[0], entries, stoppedAtUnnumbered };
   }
 
   function setText(node, value) {
@@ -579,13 +670,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     ]);
     const styles = loadStyles(styleDoc);
     const labels = mapNumbering(doc, loadNumbering(numberingDoc), styles);
-    const { entries, stoppedAtUnnumbered } = bibliographyEntries(doc, styles, labels);
+    const { heading, entries, stoppedAtUnnumbered } = bibliographyEntries(doc, styles, labels);
+    let layoutChanged = formatReferenceLayout(heading, true);
     let changed = 0;
     const reviews = [];
     for (const entry of entries) {
       const citation = !entry.content.plain || entry.manualAndAutomatic
         ? { reason: "含复杂 Word 格式或重复编号，已保留原文" }
         : window.formatCitation(entry.text);
+      if (citation.layoutEligible && formatReferenceLayout(entry.paragraph, false)) layoutChanged = true;
       const crossesAnchor = citation.edits?.some(({ start, end }) => {
         const left = entry.start + start;
         const right = entry.start + end;
@@ -603,12 +696,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
     }
     let output = bytes;
-    if (changed) {
+    if (changed || layoutChanged) {
       zip.file("word/document.xml", new XMLSerializer().serializeToString(doc));
       output = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
     }
     const references = entries.map(({ number, paragraphIndex }) => ({ number, paragraphIndex }));
-    return { bytes: output, references, changed, reviews, stoppedAtUnnumbered };
+    return { bytes: output, references, changed, layoutChanged, reviews, stoppedAtUnnumbered };
   }
 
   window.formatWord = formatWord;
@@ -662,9 +755,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     get("total").textContent = String(result.references.length);
     get("changed").textContent = String(result.changed);
     get("review-count").textContent = String(result.reviews.length);
-    get("result-summary").textContent = result.reviews.length
-      ? "待复核条目已保留原文。"
-      : result.changed ? "可以下载整理后的论文。" : "已识别的条目无需调整。";
+    const summary = [];
+    if (result.layoutChanged) summary.push("已调整文末排版。");
+    if (result.reviews.length) summary.push("待复核条目已保留原文。");
+    get("result-summary").textContent = summary.join("")
+      || (result.changed ? "可以下载整理后的论文。" : "已识别的条目无需调整。");
     get("boundary-notice").hidden = !result.stoppedAtUnnumbered;
 
     const reviewBox = get("review-box");
